@@ -4,9 +4,9 @@ use std::{
 };
 
 fn main() {
-    let file = File::open("input").unwrap();
+    let file = File::open("inputs/day1").unwrap();
 
-    let r: Vec<usize> = io::BufReader::new(file)
+    let mut r: Vec<usize> = io::BufReader::new(file)
         .lines()
         .fold(vec![0], |mut acc, item| {
             let line = item.unwrap();
@@ -18,5 +18,7 @@ fn main() {
             }
             acc
         });
-    println!("{:?}", r.iter().max());
+    r.sort();
+
+    println!("{}", r.iter().rev().take(3).sum::<usize>());
 }

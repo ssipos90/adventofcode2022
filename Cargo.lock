@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "ssipos90_adventofcode2021"
+name = "ssipos90_adventofcode2022_day1"
 version = "0.1.0"
