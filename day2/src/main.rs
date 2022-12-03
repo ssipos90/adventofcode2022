@@ -10,33 +10,30 @@ enum RPC {
     Scissors,
 }
 
-#[derive(thiserror::Error, Debug)]
-enum RPCError {
-    #[error("Don't know how to handle `{0}`.")]
-    UnknownChar(char),
-}
+#[derive(Debug)]
+struct UnknownCharError(char);
 
 impl RPC {
-    fn from_elf(c: &char) -> Result<Self, RPCError> {
+    fn from_elf(c: &char) -> Result<Self, UnknownCharError> {
         match c {
             'A' => Ok(Self::Rock),
             'B' => Ok(Self::Paper),
             'C' => Ok(Self::Scissors),
-            _ => Err(RPCError::UnknownChar(*c)),
+            _ => Err(UnknownCharError(*c)),
         }
     }
 
-    fn from_self(c: &char) -> Result<Self, RPCError> {
+    fn from_self(c: &char) -> Result<Self, UnknownCharError> {
         match c {
             'X' => Ok(Self::Rock),
             'Y' => Ok(Self::Paper),
             'Z' => Ok(Self::Scissors),
-            _ => Err(RPCError::UnknownChar(*c)),
+            _ => Err(UnknownCharError(*c)),
         }
     }
 
-    fn play(left: &Self, right: &Self) -> (usize, usize) {
-        let winner = match left {
+    fn winner(left: &Self, right: &Self) -> Winner {
+        match left {
             left if left == right => Winner::Draw,
             RPC::Rock => {
                 if right == &Self::Scissors {
@@ -59,7 +56,11 @@ impl RPC {
                     Winner::Right
                 }
             }
-        };
+        }
+    }
+
+    fn play(left: &Self, right: &Self) -> (usize, usize) {
+        let winner = Self::winner(left, right);
         let left_score = Self::score(left);
         let right_score = Self::score(right);
 
@@ -85,23 +86,72 @@ enum Winner {
     Draw,
 }
 
+#[derive(PartialEq)]
+enum MyOutcome {
+    Win,
+    Lose,
+    Draw,
+}
+
+impl MyOutcome {
+    fn parse(c: char) -> Result<Self, UnknownCharError> {
+        match c {
+            'X' => Ok(Self::Lose),
+            'Y' => Ok(Self::Draw),
+            'Z' => Ok(Self::Win),
+            _ => Err(UnknownCharError(c)),
+        }
+    }
+
+    fn versus(self, other: &RPC) -> RPC {
+        if self == Self::Draw {
+            return match other {
+                RPC::Rock => RPC::Rock,
+                RPC::Paper => RPC::Paper,
+                RPC::Scissors => RPC::Scissors,
+            };
+        }
+        match other {
+            RPC::Rock => {
+                if self == Self::Win {
+                    RPC::Paper
+                } else {
+                    RPC::Scissors
+                }
+            }
+            RPC::Paper => {
+                if self == Self::Win {
+                    RPC::Scissors
+                } else {
+                    RPC::Rock
+                }
+            },
+            RPC::Scissors => {
+                if self == Self::Win {
+                    RPC::Rock
+                } else {
+                    RPC::Paper
+                }
+            },
+        }
+    }
+}
+
 fn main() {
     let file = File::open("inputs/day2").unwrap();
 
-    let (elf_score, my_score) = io::BufReader::new(file)
-        .lines()
-        .fold((0, 0), |(elf_score, my_score), line| {
-            let chars = line
-                .unwrap()
-                .chars()
-                .take(3)
-                .collect::<Vec<char>>();
-            let elf = RPC::from_elf(chars.get(0).unwrap()).unwrap();
-            let me = RPC::from_self(chars.get(2).unwrap()).unwrap();
-            let (elf_points, my_points) = RPC::play(&elf, &me);
-            println!("{} - {}", elf_points, my_points);
-            (elf_score + elf_points, my_score + my_points)
-        });
+    let (elf_score, my_score) =
+        io::BufReader::new(file)
+            .lines()
+            .fold((0, 0), |(elf_score, my_score), line| {
+                let chars = line.unwrap().chars().take(3).collect::<Vec<char>>();
+                let elf = RPC::from_elf(chars.get(0).unwrap()).unwrap();
+                let my_outcome = MyOutcome::parse(*chars.get(2).unwrap()).unwrap();
+                let me = my_outcome.versus(&elf);
+                let (elf_points, my_points) = RPC::play(&elf, &me);
+                println!("{} - {}", elf_points, my_points);
+                (elf_score + elf_points, my_score + my_points)
+            });
 
     println!("{} - {}", elf_score, my_score);
 }
