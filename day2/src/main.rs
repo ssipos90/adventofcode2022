@@ -23,15 +23,6 @@ impl RPC {
         }
     }
 
-    fn from_self(c: &char) -> Result<Self, UnknownCharError> {
-        match c {
-            'X' => Ok(Self::Rock),
-            'Y' => Ok(Self::Paper),
-            'Z' => Ok(Self::Scissors),
-            _ => Err(UnknownCharError(*c)),
-        }
-    }
-
     fn winner(left: &Self, right: &Self) -> Winner {
         match left {
             left if left == right => Winner::Draw,
