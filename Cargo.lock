@@ -66,6 +66,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssipos90_adventofcode2022_day4"
+version = "0.1.0"
+dependencies = [
+ "test-case",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
