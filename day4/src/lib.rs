@@ -25,36 +25,76 @@ pub fn are_pairs_inclusive(((a, b), (c, d)): &(Interval, Interval)) -> bool {
     (a <= c && b >= d) || (c <= a && d >= b)
 }
 
+pub fn are_pairs_overlapping(((a, b), (c, d)): &(Interval, Interval)) -> bool {
+    (a <= c && c <= b) || (a <= d && d <= b) || (a >= c && a <= d)
+}
+
 #[cfg(test)]
 mod tests {
-    use std::fs::read_to_string;
-
     use super::*;
 
-    fn count_lines(input: &str) -> usize {
-        input
-            .lines()
-            .map(|line| parse_line(line).unwrap())
-            .filter(are_pairs_inclusive)
-            .count()
-    }
+    mod part1 {
+        use super::*;
+        use std::fs::read_to_string;
 
-    #[test]
-    fn example_works() {
-        let input = r#"2-4,6-8
+        fn count_lines(input: &str) -> usize {
+            input
+                .lines()
+                .map(|line| parse_line(line).unwrap())
+                .filter(are_pairs_inclusive)
+                .count()
+        }
+
+        #[test]
+        fn example_works() {
+            let input = r#"2-4,6-8
 2-3,4-5
 5-7,7-9
 2-8,3-7
 6-6,4-6
 2-6,4-8"#;
 
-        assert_eq!(count_lines(input), 2);
+            assert_eq!(count_lines(input), 2);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = read_to_string("input").unwrap();
+            assert_eq!(count_lines(&input), 485);
+        }
     }
 
-    #[test]
-    fn input_works() {
-        let input = read_to_string("input").unwrap();
-        assert_eq!(count_lines(&input), 485);
+    mod part2 {
+        use std::fs::read_to_string;
+
+        use super::*;
+        // use std::fs::read_to_string;
+
+        fn count_overlaps(input: &str) -> usize {
+            input
+                .lines()
+                .map(|line| parse_line(line).unwrap())
+                .filter(are_pairs_overlapping)
+                .count()
+        }
+
+        #[test]
+        fn example_works() {
+            let input = r#"2-4,6-8
+2-3,4-5
+5-7,7-9
+2-8,3-7
+6-6,4-6
+2-6,4-8"#;
+
+            assert_eq!(count_overlaps(input), 4);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = read_to_string("input").unwrap();
+            assert_eq!(count_overlaps(&input), 857);
+        }
     }
 
     mod parse_pair {
