@@ -25,29 +25,70 @@ pub fn calculate_total_priority(input: &str) -> u32 {
     })
 }
 
+pub fn calculate_second_priority(input: &str) -> u32 {
+    input
+        .lines()
+        .collect::<Vec<_>>()
+        .chunks_exact(3)
+        .fold(0, |acc, triplets| {
+            let [a, b, c]: [&str; 3] = triplets.try_into().unwrap();
+            let priority = calculate_priority(
+                a.chars()
+                    .find(|a1| b.contains(*a1) && c.contains(*a1))
+                    .unwrap(),
+            )
+            .unwrap();
+            acc + priority
+        })
+}
+
 #[cfg(test)]
 mod tests {
-    use std::fs::read_to_string;
-
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    fn example_works() {
-        let input = r#"vJrwpWtwJgWrhcsFMMfFFhFp
+    mod part2 {
+        use super::*;
+        use std::fs::read_to_string;
+
+        #[test]
+        fn example_works() {
+            let input = r#"vJrwpWtwJgWrhcsFMMfFFhFp
 jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
 PmmdzqPrVvPwwTWBwg
 wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
 ttgJtRGJQctTZtZT
 CrZsJsPPZsGzwwsLwLmpwMDw"#;
+            assert_eq!(calculate_second_priority(input), 70);
+        }
 
-        assert_eq!(calculate_total_priority(input), 157);
+        #[test]
+        fn input_works() {
+            let input = read_to_string("src/day3").unwrap();
+            assert_eq!(calculate_second_priority(&input), 2545);
+        }
     }
 
-    #[test]
-    fn input_works() {
-        let input = read_to_string("src/day3").unwrap();
-        assert_eq!(calculate_total_priority(&input), 7997);
+    mod part1 {
+        use super::*;
+        use std::fs::read_to_string;
+
+        #[test]
+        fn example_works() {
+            let input = r#"vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg
+wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+ttgJtRGJQctTZtZT
+CrZsJsPPZsGzwwsLwLmpwMDw"#;
+            assert_eq!(calculate_total_priority(input), 157);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = read_to_string("src/day3").unwrap();
+            assert_eq!(calculate_total_priority(&input), 7997);
+        }
     }
 
     #[test_case('a', 1)]
