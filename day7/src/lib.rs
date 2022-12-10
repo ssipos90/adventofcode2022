@@ -106,22 +106,20 @@ fn walk_tree<'a>(name: &'a str, children: &[TreeEntry<'a>]) -> DirStats<'a> {
 mod tests {
     use super::*;
     mod part1 {
+        use super::*;
+        use std::fs::read_to_string;
+
         fn test_helper(input: &str) -> u32 {
             let ops = parse_output(input);
             let tree = build_tree(&ops);
             let sizes = flatten_tree(&tree);
             let under_10k = sizes
                 .iter()
-                .filter_map(|&dir| {
-                    if dir.1 <= 100000 { Some(dir.1) } else { None }
-                })
+                .filter_map(|&dir| if dir.1 <= 100000 { Some(dir.1) } else { None })
                 .collect::<Vec<_>>();
             under_10k.iter().sum()
         }
 
-        use std::fs::read_to_string;
-
-        use super::*;
         #[test]
         fn example_works() {
             let input = r#"$ cd /
@@ -157,6 +155,67 @@ $ ls
 
             let under_10k_sum = test_helper(&input);
             assert_eq!(under_10k_sum, 1315285);
+        }
+    }
+
+    mod part2 {
+        use std::fs::read_to_string;
+
+        use super::*;
+
+        fn test_helper(input: &str, disk_size: u32, update_size: u32) -> Option<u32> {
+            let ops = parse_output(input);
+            let tree = build_tree(&ops);
+            let sizes = flatten_tree(&tree);
+            let free = disk_size - sizes[0].1;
+            if free > update_size {
+                None
+            } else {
+                let needed = update_size - free;
+                sizes
+                    .iter()
+                    .filter_map(|&dir| if dir.1 >= needed { Some(dir.1) } else { None })
+                    .min()
+            }
+        }
+
+        #[test]
+        fn example_works() {
+            let input = r#"$ cd /
+$ ls
+dir a
+14848514 b.txt
+8504156 c.dat
+dir d
+$ cd a
+$ ls
+dir e
+29116 f
+2557 g
+62596 h.lst
+$ cd e
+$ ls
+584 i
+$ cd ..
+$ cd ..
+$ cd d
+$ ls
+4060174 j
+8033020 d.log
+5626152 d.ext
+7214296 k"#;
+            let size = test_helper(input, 70_000_000, 30_000_000).unwrap();
+
+            assert_eq!(size, 24933642);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = read_to_string("input").unwrap();
+
+            let size = test_helper(&input, 70_000_000, 30_000_000).unwrap();
+
+            assert_eq!(size, 9847279);
         }
     }
 }
