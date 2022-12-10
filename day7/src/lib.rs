@@ -74,48 +74,53 @@ pub fn build_dir<'a>(ops: &mut Vec<&Operation<'a>>) -> Vec<TreeEntry<'a>> {
 }
 
 #[derive(Debug)]
-pub struct DS<'a>(&'a str, u32, Vec<DS<'a>>);
+pub struct DirStats<'a>(&'a str, u32, Vec<DirStats<'a>>);
 
 pub fn flatten_tree<'a>(tree: &[TreeEntry<'a>]) -> Vec<(&'a str, u32)> {
-    let DS(name, size, rest) = flatten_tree_helper("/", tree);
-    rest.iter()
-        .flat_map(|ds| {
-            let mut v = vec![(name, size)];
-            v.append(&mut ds.2.iter().map(|ds| {
-                (ds.0, ds.1)
-            }).collect());
-            v
-        })
-        .collect()
-}
-fn flatten_tree_helper<'a>(name: &'a str, children: &[TreeEntry<'a>]) -> DS<'a> {
-    let (size, rest) = children.iter().fold((0, vec![]), |mut acc, child| match child {
-        TreeEntry::File(_, size) => (acc.0 + *size, acc.1),
-        TreeEntry::Dir(name, children) => {
-            let ds = flatten_tree_helper(name, children);
-            acc.1.push(ds);
-            (acc.0, acc.1)
-        }
-    });
-    DS(name, size, rest)
+    let DirStats(_name, _size, rest) = walk_tree("/", tree);
+    rest.iter().flat_map(fl).collect()
 }
 
-// fn flatten_tree_helper<'a>(name: &'a str, children: &[TreeEntry<'a>]) -> DS<'a> {
-//     let (size, rest) = children.iter().fold((0, vec![]), |acc, child| match child {
-//         TreeEntry::File(_, size) => (acc.0 + *size, acc.1),
-//         TreeEntry::Dir(name, children) => {
-//             let ds = flatten_tree_helper(name, children);
-//             acc.1.push(ds);
-//             (acc.0, acc.1)
-//         }
-//     });
-//     DS(name, size, rest)
-// }
+fn fl<'a>(ds: &DirStats<'a>) -> Vec<(&'a str, u32)> {
+    let mut v = vec![(ds.0, ds.1)];
+    v.append(&mut ds.2.iter().flat_map(fl).collect());
+    v
+}
+
+fn walk_tree<'a>(name: &'a str, children: &[TreeEntry<'a>]) -> DirStats<'a> {
+    let (size, rest) = children
+        .iter()
+        .fold((0, vec![]), |mut acc, child| match child {
+            TreeEntry::File(_, size) => (acc.0 + *size, acc.1),
+            TreeEntry::Dir(name, children) => {
+                let ds = walk_tree(name, children);
+                let ds_size = ds.1;
+                acc.1.push(ds);
+                (acc.0 + ds_size, acc.1)
+            }
+        });
+    DirStats(name, size, rest)
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     mod part1 {
+        fn test_helper(input: &str) -> u32 {
+            let ops = parse_output(input);
+            let tree = build_tree(&ops);
+            let sizes = flatten_tree(&tree);
+            let under_10k = sizes
+                .iter()
+                .filter_map(|&dir| {
+                    if dir.1 <= 100000 { Some(dir.1) } else { None }
+                })
+                .collect::<Vec<_>>();
+            under_10k.iter().sum()
+        }
+
+        use std::fs::read_to_string;
+
         use super::*;
         #[test]
         fn example_works() {
@@ -142,16 +147,16 @@ $ ls
 8033020 d.log
 5626152 d.ext
 7214296 k"#;
-            let ops = parse_output(input);
-            let tree = build_tree(&ops);
-            let sizes = flatten_tree(&tree);
-            let under_10k = sizes
-                .iter()
-                .filter_map(|&dir| if dir.1 <= 100000 { Some(dir.1) } else { None })
-                .collect::<Vec<_>>();
-            println!("{:?}", under_10k);
-            let under_10k_sum: u32 = under_10k.iter().sum();
+            let under_10k_sum = test_helper(input);
             assert_eq!(under_10k_sum, 95437);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = read_to_string("input").unwrap();
+
+            let under_10k_sum = test_helper(&input);
+            assert_eq!(under_10k_sum, 1315285);
         }
     }
 }
