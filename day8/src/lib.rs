@@ -22,47 +22,47 @@ pub fn count_visible(forest: Vec<Vec<i32>>) -> usize {
     if n < 3 {
         return m * n;
     }
-    for row in forest.iter() {
-        println!("{:?}", row);
-    }
-    println!();
+    // for row in forest.iter() {
+    //     println!("{:?}", row);
+    // }
+    // println!();
     forest.iter().enumerate().fold(0, |acc, (i, row)| {
-        println!("{:?}", row);
+        // eprintln!("{:?}", row);
         acc + row
             .iter()
             .enumerate()
             .filter(|(j, &c)| {
                 let j = *j;
-                eprintln!("{i}-{j}: {c}");
+                // eprintln!("{i}-{j}: {c}");
 
                 if i == 0 || i == m - 1 {
-                    eprintln!("    visible, top or bottom edge");
+                    // eprintln!("    visible, top or bottom edge");
                     return true;
                 }
 
                 if j == 0 || j == n - 1 {
-                    eprintln!("    visible, left or right edge");
+                    // eprintln!("    visible, left or right edge");
                     return true;
                 }
                 if row[0..j].iter().all(|&x| x < c) {
-                    eprintln!("   visible from left");
+                    // eprintln!("   visible from left");
                     return true;
                 }
                 if row[j + 1..n].iter().all(|&x| x < c) {
-                    eprintln!("   visible from right");
+                    // eprintln!("   visible from right");
                     return true;
                 }
 
                 if forest[0..i].iter().all(|row| row[j] < c) {
-                    eprintln!("   visible from top");
+                    // eprintln!("   visible from top");
                     return true;
                 }
                 if forest[i + 1..m].iter().all(|row| row[j] < c) {
-                    eprintln!("   visible from bottom");
+                    // eprintln!("   visible from bottom");
                     return true;
                 }
 
-                eprintln!("   hidden");
+                // eprintln!("   hidden");
                 false
             })
             .count()
@@ -83,6 +83,8 @@ mod tests {
     }
 
     mod part1 {
+        use std::fs::read_to_string;
+
         use super::*;
         #[test]
         fn example_works() {
@@ -94,6 +96,14 @@ mod tests {
 
             let forest = parse_input(input).unwrap();
             assert_eq!(count_visible(forest), 21);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = read_to_string("input").unwrap();
+
+            let forest = parse_input(&input).unwrap();
+            assert_eq!(count_visible(forest), 1825);
         }
     }
 }
