@@ -1,20 +1,15 @@
-use std::{
-    fs::File,
-    io::{self, BufRead},
-};
-
 #[derive(PartialEq)]
-enum RPC {
+pub enum RPC {
     Rock,
     Paper,
     Scissors,
 }
 
 #[derive(Debug)]
-struct UnknownCharError(char);
+pub struct UnknownCharError(char);
 
 impl RPC {
-    fn from_elf(c: &char) -> Result<Self, UnknownCharError> {
+    pub fn from_elf(c: &char) -> Result<Self, UnknownCharError> {
         match c {
             'A' => Ok(Self::Rock),
             'B' => Ok(Self::Paper),
@@ -23,7 +18,7 @@ impl RPC {
         }
     }
 
-    fn winner(left: &Self, right: &Self) -> Winner {
+    pub fn winner(left: &Self, right: &Self) -> Winner {
         match left {
             left if left == right => Winner::Draw,
             RPC::Rock => {
@@ -50,7 +45,7 @@ impl RPC {
         }
     }
 
-    fn play(left: &Self, right: &Self) -> (usize, usize) {
+    pub fn play(left: &Self, right: &Self) -> (usize, usize) {
         let winner = Self::winner(left, right);
         let left_score = Self::score(left);
         let right_score = Self::score(right);
@@ -62,7 +57,7 @@ impl RPC {
         }
     }
 
-    fn score(s: &Self) -> usize {
+    pub fn score(s: &Self) -> usize {
         match s {
             Self::Rock => 1,
             Self::Paper => 2,
@@ -71,21 +66,21 @@ impl RPC {
     }
 }
 
-enum Winner {
+pub enum Winner {
     Left,
     Right,
     Draw,
 }
 
 #[derive(PartialEq)]
-enum MyOutcome {
+pub enum MyOutcome {
     Win,
     Lose,
     Draw,
 }
 
 impl MyOutcome {
-    fn parse(c: char) -> Result<Self, UnknownCharError> {
+    pub fn parse(c: char) -> Result<Self, UnknownCharError> {
         match c {
             'X' => Ok(Self::Lose),
             'Y' => Ok(Self::Draw),
@@ -94,7 +89,7 @@ impl MyOutcome {
         }
     }
 
-    fn versus(self, other: &RPC) -> RPC {
+    pub fn versus(self, other: &RPC) -> RPC {
         if self == Self::Draw {
             return match other {
                 RPC::Rock => RPC::Rock,
@@ -116,33 +111,45 @@ impl MyOutcome {
                 } else {
                     RPC::Rock
                 }
-            },
+            }
             RPC::Scissors => {
                 if self == Self::Win {
                     RPC::Rock
                 } else {
                     RPC::Paper
                 }
-            },
+            }
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    mod part2 {
+        use super::*;
+        use std::{
+            fs::File,
+            io::{self, BufRead},
+        };
 
-fn main() {
-    let file = File::open("inputs/day2").unwrap();
+        #[test]
+        fn input_works() {
+            let file = File::open("input").unwrap();
 
-    let (elf_score, my_score) =
-        io::BufReader::new(file)
-            .lines()
-            .fold((0, 0), |(elf_score, my_score), line| {
-                let chars = line.unwrap().chars().take(3).collect::<Vec<char>>();
-                let elf = RPC::from_elf(chars.get(0).unwrap()).unwrap();
-                let my_outcome = MyOutcome::parse(*chars.get(2).unwrap()).unwrap();
-                let me = my_outcome.versus(&elf);
-                let (elf_points, my_points) = RPC::play(&elf, &me);
-                println!("{} - {}", elf_points, my_points);
-                (elf_score + elf_points, my_score + my_points)
-            });
+            let (elf_score, my_score) =
+                io::BufReader::new(file)
+                    .lines()
+                    .fold((0, 0), |(elf_score, my_score), line| {
+                        let chars = line.unwrap().chars().take(3).collect::<Vec<char>>();
+                        let elf = RPC::from_elf(chars.get(0).unwrap()).unwrap();
+                        let my_outcome = MyOutcome::parse(*chars.get(2).unwrap()).unwrap();
+                        let me = my_outcome.versus(&elf);
+                        let (elf_points, my_points) = RPC::play(&elf, &me);
+                        (elf_score + elf_points, my_score + my_points)
+                    });
 
-    println!("{} - {}", elf_score, my_score);
+            println!("{} - {}", elf_score, my_score);
+            // TODO: god knows what is the assertion
+        }
+    }
 }

@@ -86,7 +86,7 @@ CrZsJsPPZsGzwwsLwLmpwMDw"#;
 
         #[test]
         fn input_works() {
-            let input = read_to_string("src/day3").unwrap();
+            let input = read_to_string("input").unwrap();
             assert_eq!(calculate_total_priority(&input), 7997);
         }
     }
