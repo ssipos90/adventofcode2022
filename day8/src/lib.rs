@@ -1,4 +1,6 @@
-pub fn parse_input(input: &str) -> Result<Vec<Vec<i32>>, String> {
+pub type Forest = Vec<Vec<i32>>;
+
+pub fn parse_input(input: &str) -> Result<Forest, String> {
     input
         .lines()
         .map(|line| {
@@ -13,7 +15,7 @@ pub fn parse_input(input: &str) -> Result<Vec<Vec<i32>>, String> {
         .collect()
 }
 
-pub fn count_visible(forest: Vec<Vec<i32>>) -> usize {
+pub fn count_visible(forest: Forest) -> usize {
     let m = forest.len();
     let n = forest[0].len();
     if m < 3 {
@@ -69,6 +71,56 @@ pub fn count_visible(forest: Vec<Vec<i32>>) -> usize {
     })
 }
 
+pub fn calculate_scenic_scores(forest: &Forest) -> Vec<Vec<(i32, u32)>> {
+    forest
+        .iter()
+        .enumerate()
+        .map(|(i, row)| {
+            row.iter()
+                .enumerate()
+                .map(|(j, &c)| {
+                    let mut scores: [u32; 4] = [0, 0, 0, 0];
+
+                    // top
+                    for row in forest[0..i].iter().rev() {
+                        scores[0] += 1;
+                        if row[j] >= c {
+                            break;
+                        }
+                    }
+
+                    // left
+                    for x in row[0..j].iter().rev() {
+                        scores[1] += 1;
+                        if *x >= c {
+                            break;
+                        }
+                    }
+
+                    // bottom
+                    for row in forest[i + 1..].iter() {
+                        scores[2] += 1;
+                        if row[j] >= c {
+                            break;
+                        }
+                    }
+
+                    // right
+                    for x in row[j + 1..].iter() {
+                        scores[3] += 1;
+                        if *x >= c {
+                            break;
+                        }
+                    }
+
+                    let score = scores.iter().product();
+                    (c, score)
+                })
+                .collect()
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -78,7 +130,7 @@ mod tests {
     #[test_case(vec![vec![1,2,3], vec![1,2,3]], 6)]
     #[test_case(vec![vec![1], vec![2]], 2)]
     #[test_case(vec![vec![1], vec![2], vec![3]], 3)]
-    fn test_count_visible_on_small_forest(forest: Vec<Vec<i32>>, visible: usize) {
+    fn test_count_visible_on_small_forest(forest: Forest, visible: usize) {
         assert_eq!(count_visible(forest), visible);
     }
 
@@ -104,6 +156,41 @@ mod tests {
 
             let forest = parse_input(&input).unwrap();
             assert_eq!(count_visible(forest), 1825);
+        }
+    }
+
+    mod part2 {
+        use std::fs::read_to_string;
+
+        use super::*;
+        #[test]
+        fn example_works() {
+            let input = r#"30373
+25512
+65332
+33549
+35390"#;
+
+            let forest = parse_input(input).unwrap();
+            let scores = calculate_scenic_scores(&forest);
+            assert_eq!(scores.iter().flatten().map(|(_, score)| *score).max().unwrap_or(0), 8);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = read_to_string("input").unwrap();
+
+            let forest = parse_input(&input).unwrap();
+            let scores = calculate_scenic_scores(&forest);
+            assert_eq!(
+                scores
+                    .iter()
+                    .flatten()
+                    .map(|(_, score)| *score)
+                    .max()
+                    .unwrap_or(0),
+                235200
+            );
         }
     }
 }
