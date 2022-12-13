@@ -47,7 +47,8 @@ pub fn parse_input(input: &str) -> Result<Vec<(Direction, u32)>, String> {
 }
 
 pub fn smf(data: &[(Direction, u32)]) -> u32 {
-    let _directions: Vec<Direction> = data.iter()
+    let _directions: Vec<Direction> = data
+        .iter()
         .flat_map(|(direction, magnitude)| vec![*direction; *magnitude as usize])
         .collect();
 
