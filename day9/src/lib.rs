@@ -1,11 +1,24 @@
 use std::str::FromStr;
 
+type Vec2D = (i32, i32);
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Direction {
     Up = 1,
     Left = 2,
     Down = 3,
     Right = 4,
+}
+
+impl Direction {
+    pub fn to_vec(&self) -> Vec2D {
+        match self {
+            Direction::Up => (0, -1),
+            Direction::Left => (-1, 0),
+            Direction::Down => (0, 1),
+            Direction::Right => (1, 0),
+        }
+    }
 }
 
 impl FromStr for Direction {
@@ -46,13 +59,37 @@ pub fn parse_input(input: &str) -> Result<Vec<(Direction, u32)>, String> {
     input.lines().map(parse_input_line).collect()
 }
 
-pub fn smf(data: &[(Direction, u32)]) -> u32 {
-    let _directions: Vec<Direction> = data
-        .iter()
-        .flat_map(|(direction, magnitude)| vec![*direction; *magnitude as usize])
-        .collect();
+pub fn generate_history(data: &[(Direction, u32)]) -> Vec<(Vec2D, Vec2D)> {
+    data.iter()
+        .flat_map(|(direction, magnitude)| vec![direction.to_vec(); *magnitude as usize])
+        .fold(vec![], |mut history, (dx, dy)| {
+            history.push(match history.last() {
+                Some(((hx, hy), tail)) => {
+                    let head = (hx + dx, hy + dy);
+                    let tail = calculate_tail_position(head, *tail);
+                    dbg!((head, tail))
+                }
+                None => ((dx, dy), (dx, dy)),
+            });
+            history
+        })
+}
 
-    1
+pub fn calculate_tail_position((hx, hy): Vec2D, (tx, ty): Vec2D) -> Vec2D {
+    let dx = hx - tx;
+    let dy = hx - hy;
+    let mut t2x = 0;
+    if dx.abs() == 2 {
+        t2x = tx + dx - 1;
+    } else {
+        t2x = tx;
+    }
+    let t2y = ty + if dy == 2 {
+        1
+    } else {
+        0
+    };
+    (t2x, t2y)
 }
 
 #[cfg(test)]
@@ -74,9 +111,88 @@ L 5
 R 2"#;
 
             let data = parse_input(input).unwrap();
-            let result = smf(&data);
-            assert_eq!(result, 13);
+            let history = generate_history(&data);
+            println!("history: {:?}", history);
+            let (minx, maxx, miny, maxy) = history.iter().fold(
+                (i32::max_value(), i32::min_value(), i32::max_value(), i32::min_value()),
+                |(minx, maxx, miny, maxy), ((hx, hy), (tx, ty))| {
+                    (
+                        [minx, *hx, *tx].iter().min().copied().unwrap(),
+                        [maxx, *hx, *tx].iter().max().copied().unwrap(),
+                        [miny, *hy, *ty].iter().min().copied().unwrap(),
+                        [maxy, *hy, *ty].iter().max().copied().unwrap(),
+                    )
+                },
+            );
+            println!("{minx}, {maxx}; {miny}, {maxy}");
+
+            history
+                .iter()
+                .for_each(|((hx, hy), (tx, ty))| {
+                    println!(
+                        "{}\n",
+                        (minx + 1..maxx)
+                            .rev()
+                            .map(|i| {
+                                (miny..maxy + 1)
+                                    .map(|j| {
+                                        let mut c = '.';
+                                        if i == *tx && j == *ty {
+                                            c = 'T'
+                                        }
+
+                                        if i == *hx && j == *hy {
+                                            c = 'H'
+                                        }
+                                        c
+                                    })
+                                    .collect::<String>()
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    );
+                });
+
+            let result: Vec<Vec2D> = history.iter().map(|(_, t)| t).fold(vec![], |mut acc, t| {
+                println!("checking {:?}", t);
+                if !acc.contains(t) {
+                    println!(" -> adding");
+                    acc.push(*t)
+                }
+                acc
+            });
+            println!("{:?}", result);
+            assert_eq!(result.len(), 13);
         }
+    }
+
+    /// .....    .....    .....
+    /// .TH.. -> .T.H. -> ..TH.
+    /// .....    .....    .....
+    ///
+    /// ...    ...    ...
+    /// .T.    .T.    ...
+    /// .H. -> ... -> .T.
+    /// ...    .H.    .H.
+    /// ...    ...    ...
+    #[test_case((1, 3), (1, 1), (1, 2))]
+    #[test_case((3, 1), (1, 1), (2, 1))]
+    ///
+    /// .....    .....    .....
+    /// .....    ..H..    ..H..
+    /// ..H.. -> ..... -> ..T..
+    /// .T...    .T...    .....
+    /// .....    .....    .....
+    ///
+    /// .....    .....    .....
+    /// .....    .....    .....
+    /// ..H.. -> ...H. -> ..TH.
+    /// .T...    .T...    .....
+    /// .....    .....    .....
+    #[test_case((1, 2), (3, 1), (2, 2))]
+    #[test_case((2, 3), (3, 1), (2, 2))]
+    fn tail_position_calculator(head: Vec2D, old_tail: Vec2D, new_tail: Vec2D) {
+        assert_eq!(calculate_tail_position(head, old_tail), new_tail);
     }
 
     #[test_case(1, "R 4", Direction::Right, 4)]
