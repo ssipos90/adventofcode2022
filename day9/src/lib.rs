@@ -1,41 +1,6 @@
-use std::str::FromStr;
-
 type Vec2D = (i32, i32);
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Direction {
-    Up = 1,
-    Left = 2,
-    Down = 3,
-    Right = 4,
-}
-
-impl Direction {
-    pub fn to_vec(&self) -> Vec2D {
-        match self {
-            Direction::Up => (0, -1),
-            Direction::Left => (-1, 0),
-            Direction::Down => (0, 1),
-            Direction::Right => (1, 0),
-        }
-    }
-}
-
-impl FromStr for Direction {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "U" => Ok(Self::Up),
-            "L" => Ok(Self::Left),
-            "D" => Ok(Self::Down),
-            "R" => Ok(Self::Right),
-            _ => Err("Unknown str, cannot parse.".to_string()),
-        }
-    }
-}
-
-fn parse_input_line(line: &str) -> Result<(Direction, u32), String> {
+fn parse_input_line(line: &str) -> Result<Vec2D, String> {
     let (direction, magnitude) = match line
         .split_once(' ')
         .ok_or_else(|| "Failed to split line in 2".to_string())
@@ -44,24 +9,32 @@ fn parse_input_line(line: &str) -> Result<(Direction, u32), String> {
         Err(e) => return Err(e),
     };
 
-    let direction: Direction = match direction.parse() {
-        Ok(d) => d,
-        Err(e) => return Err(e),
-    };
-    let magnitude: u32 = match magnitude.parse() {
-        Ok(d) => d,
+    let magnitude: i32 = match magnitude.parse::<u32>() {
+        Ok(d) => d as i32,
         Err(e) => return Err(e.to_string()),
     };
-    Ok((direction, magnitude))
+
+    match direction {
+        "U" => Ok((0, -magnitude)),
+        "L" => Ok((-magnitude, 0)),
+        "D" => Ok((0, magnitude)),
+        "R" => Ok((magnitude, 0)),
+        _ => Err("Unknown str, cannot parse.".to_string()),
+    }
 }
 
-pub fn parse_input(input: &str) -> Result<Vec<(Direction, u32)>, String> {
+pub fn parse_input(input: &str) -> Result<Vec<Vec2D>, String> {
     input.lines().map(parse_input_line).collect()
 }
 
-pub fn generate_history(data: &[(Direction, u32)]) -> Vec<(Vec2D, Vec2D)> {
+pub fn generate_history(data: &[Vec2D]) -> Vec<(Vec2D, Vec2D)> {
     data.iter()
-        .flat_map(|(direction, magnitude)| vec![direction.to_vec(); *magnitude as usize])
+        .flat_map(|(x, y)| {
+            let xa = x.abs() as usize;
+            let ya = y.abs() as usize;
+
+            vec![(x, y)]
+        })
         .fold(vec![], |mut history, (dx, dy)| {
             history.push(match history.last() {
                 Some((old_head @ (hx, hy), tail)) => {
@@ -90,54 +63,6 @@ pub fn calculate_tail_position((hx, hy): Vec2D, (h2x, h2y): Vec2D, (tx, ty): Vec
 mod tests {
     use super::*;
     use test_case::test_case;
-
-    mod example_history {
-        fn parse_input((refx, refy): (i32, i32), input: &str) -> Vec<((i32, i32), (i32, i32))> {
-            input
-                .split("\n\n")
-                .map(|chunk| {
-                    let head = chunk
-                        .lines()
-                        .enumerate()
-                        .find_map(|(i, line)| {
-                            line.chars().enumerate().find_map(|(j, c)| match c {
-                                'H' => Some((refx + (i as i32), refy + (j as i32))),
-                                _ => None,
-                            })
-                        })
-                        .unwrap();
-                    let tail = chunk
-                        .lines()
-                        .enumerate()
-                        .find_map(|(i, line)| {
-                            line.chars().enumerate().find_map(|(j, c)| match c {
-                                'T' => Some((refx + (i as i32), refy + (j as i32))),
-                                _ => None,
-                            })
-                        })
-                        .unwrap_or(head);
-                    (head, tail)
-                })
-                .collect()
-        }
-
-        #[test]
-        #[ignore]
-        fn example_history() {
-            let input = std::fs::read_to_string("example_history").unwrap();
-            parse_input((0, 0), &input)
-                .windows(2)
-                .enumerate()
-                .for_each(|(i, window)| {
-                    let (old_head, old_tail) = window[0];
-                    let (head, tail) = window[1];
-                    println!(
-                        r#"({}, ({:?}, {:?}, {:?}, {:?})),"#,
-                        i, old_head, head, old_tail, tail
-                    );
-                });
-        }
-    }
 
     mod part1 {
         use super::*;
@@ -220,6 +145,54 @@ R 2"#;
             let input = std::fs::read_to_string("input").unwrap();
             let (_history, results) = test_helper(&input);
             assert_eq!(1 + results.len(), 6190);
+        }
+
+        mod example_history {
+            fn parse_input((refx, refy): (i32, i32), input: &str) -> Vec<((i32, i32), (i32, i32))> {
+                input
+                    .split("\n\n")
+                    .map(|chunk| {
+                        let head = chunk
+                            .lines()
+                            .enumerate()
+                            .find_map(|(i, line)| {
+                                line.chars().enumerate().find_map(|(j, c)| match c {
+                                    'H' => Some((refx + (i as i32), refy + (j as i32))),
+                                    _ => None,
+                                })
+                            })
+                            .unwrap();
+                        let tail = chunk
+                            .lines()
+                            .enumerate()
+                            .find_map(|(i, line)| {
+                                line.chars().enumerate().find_map(|(j, c)| match c {
+                                    'T' => Some((refx + (i as i32), refy + (j as i32))),
+                                    _ => None,
+                                })
+                            })
+                            .unwrap_or(head);
+                        (head, tail)
+                    })
+                    .collect()
+            }
+
+            #[test]
+            #[ignore]
+            fn example_history() {
+                let input = std::fs::read_to_string("example_history").unwrap();
+                parse_input((0, 0), &input)
+                    .windows(2)
+                    .enumerate()
+                    .for_each(|(i, window)| {
+                        let (old_head, old_tail) = window[0];
+                        let (head, tail) = window[1];
+                        println!(
+                            r#"({}, ({:?}, {:?}, {:?}, {:?})),"#,
+                            i, old_head, head, old_tail, tail
+                        );
+                    });
+            }
         }
     }
 
@@ -305,24 +278,19 @@ R 2"#;
         }
     }
 
-    #[test_case(1, "R 4", Direction::Right, 4)]
-    #[test_case(2, "U 4", Direction::Up, 4)]
-    #[test_case(3, "L 3", Direction::Left, 3)]
-    #[test_case(4, "D 1", Direction::Down, 1)]
-    #[test_case(5, "R 4", Direction::Right, 4)]
-    #[test_case(6, "D 1", Direction::Down, 1)]
-    #[test_case(7, "L 5", Direction::Left, 5)]
-    #[test_case(8, "R 2", Direction::Right, 2)]
+    #[test_case(1, "R 4", (0, 4))]
+    #[test_case(2, "U 4", (-4, 0))]
+    #[test_case(3, "L 3", (0, -3))]
+    #[test_case(4, "D 1", (1, 0))]
+    #[test_case(5, "D 4", (4, 0))]
+    #[test_case(6, "L 5", (0, -5))]
+    #[test_case(7, "R 2", (0, 2))]
     fn test_input_parser_success(
         _: usize,
         input: &str,
-        expected_direction: Direction,
-        expected_magnitude: u32,
+        v: Vec2D,
     ) {
-        let (actual_direction, actual_magnitude) = parse_input_line(input).unwrap();
-
-        assert_eq!(actual_direction, expected_direction);
-        assert_eq!(actual_magnitude, expected_magnitude);
+        assert_eq!(parse_input_line(input).unwrap(), v);
     }
     #[test_case("f 4")]
     #[test_case(". 4")]
