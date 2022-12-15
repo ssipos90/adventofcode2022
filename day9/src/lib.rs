@@ -27,24 +27,41 @@ pub fn parse_input(input: &str) -> Result<Vec<Vec2D>, String> {
     input.lines().map(parse_input_line).collect()
 }
 
-pub fn generate_history(data: &[Vec2D]) -> Vec<(Vec2D, Vec2D)> {
-    data.iter()
-        .flat_map(|(x, y)| {
-            let v = (x.cmp(&0) as i32, y.cmp(&0) as i32);
+fn apply_motion(prev: &[Vec2D], (dx, dy): &Vec2D) -> Vec<Vec2D> {
+    prev.windows(2).fold(vec![], |mut acc, pair| {
+        let old_head @ (hx, hy) = pair[0];
+        let tail = pair[1];
 
-            (0..x.abs() + y.abs()).map(move |_| v)
-        })
-        .fold(vec![], |mut history, (dx, dy)| {
-            history.push(match history.last() {
-                Some((old_head @ (hx, hy), tail)) => {
-                    let head = (hx + dx, hy + dy);
-                    let tail = calculate_tail_position(*old_head, head, *tail);
-                    (head, tail)
-                }
-                None => ((dx, dy), (dx, dy)),
-            });
-            history
-        })
+        let head = match acc.last() {
+            Some(head) => *head,
+            None => {
+                let head = (hx + dx, hy + dy);
+                acc.push(head);
+                head
+            }
+        };
+
+        acc.push(calculate_tail_position(old_head, head, tail));
+
+        acc
+    })
+}
+
+pub fn generate_motions(data: &[Vec2D], length: usize) -> Vec<Vec<Vec2D>> {
+    data.iter().map(|(dx, dy)| {
+        let motion = (dx.cmp(&0) as i32, dy.cmp(&0) as i32);
+        let initial = vec![motion; length];
+        let mut acc = vec![apply_motion(&initial, &motion)];
+
+        (0..dx.abs() + dy.abs()).for_each(|_| {
+            if let Some(prev) = acc.last() {
+                acc.push(apply_motion(prev, &motion));
+            }
+        });
+
+        acc.last().unwrap().clone()
+    })
+    .collect()
 }
 
 pub fn calculate_tail_position((hx, hy): Vec2D, (h2x, h2y): Vec2D, (tx, ty): Vec2D) -> Vec2D {
@@ -63,66 +80,27 @@ mod tests {
     use super::*;
     use test_case::test_case;
 
+    fn test_helper(input: &str, length: usize) -> (Vec<Vec<Vec2D>>, Vec<Vec2D>) {
+        let data = parse_input(input).unwrap();
+        let history = generate_motions(&data, length);
+
+        let result: Vec<Vec2D> =
+            history
+                .iter()
+                .map(|v| v.last().unwrap())
+                .fold(vec![], |mut acc, t| {
+                    // println!("checking {:?}", t);
+                    if !acc.contains(t) {
+                        // println!(" -> adding");
+                        acc.push(*t)
+                    }
+                    acc
+                });
+
+        (history, result)
+    }
     mod part1 {
         use super::*;
-        fn test_helper(input: &str) -> (Vec<(Vec2D, Vec2D)>, Vec<Vec2D>) {
-            let data = parse_input(input).unwrap();
-            let history = generate_history(&data);
-            // println!("history: {:?}", history);
-            // let (minx, maxx, miny, maxy) = history.iter().fold(
-            //     (
-            //         i32::max_value(),
-            //         i32::min_value(),
-            //         i32::max_value(),
-            //         i32::min_value(),
-            //     ),
-            //     |(minx, maxx, miny, maxy), ((hx, hy), (tx, ty))| {
-            //         (
-            //             [minx, *hx, *tx].iter().min().copied().unwrap(),
-            //             [maxx, *hx, *tx].iter().max().copied().unwrap(),
-            //             [miny, *hy, *ty].iter().min().copied().unwrap(),
-            //             [maxy, *hy, *ty].iter().max().copied().unwrap(),
-            //         )
-            //     },
-            // );
-            // println!("{minx}, {maxx}; {miny}, {maxy}");
-
-            // history.iter().for_each(|((hx, hy), (tx, ty))| {
-            //     println!(
-            //         "{}\n",
-            //         (minx + 1..maxx)
-            //             .rev()
-            //             .map(|i| {
-            //                 (miny..maxy + 1)
-            //                     .map(|j| {
-            //                         let mut c = '.';
-            //                         if i == *tx && j == *ty {
-            //                             c = 'T'
-            //                         }
-
-            //                         if i == *hx && j == *hy {
-            //                             c = 'H'
-            //                         }
-            //                         c
-            //                     })
-            //                     .collect::<String>()
-            //             })
-            //             .collect::<Vec<_>>()
-            //             .join("\n")
-            //     );
-            // });
-
-            let result: Vec<Vec2D> = history.iter().map(|(_, t)| t).fold(vec![], |mut acc, t| {
-                // println!("checking {:?}", t);
-                if !acc.contains(t) {
-                    // println!(" -> adding");
-                    acc.push(*t)
-                }
-                acc
-            });
-
-            (history, result)
-        }
         #[test]
         fn example_works() {
             let input = r#"R 4
@@ -134,7 +112,9 @@ D 1
 L 5
 R 2"#;
 
-            let (_history, results) = test_helper(input);
+            let (history, results) = test_helper(input, 2);
+
+            print_history(&history);
 
             assert_eq!(1 + results.len(), 13);
         }
@@ -142,7 +122,7 @@ R 2"#;
         #[test]
         fn input_works() {
             let input = std::fs::read_to_string("input").unwrap();
-            let (_history, results) = test_helper(&input);
+            let (_history, results) = test_helper(&input, 2);
             assert_eq!(1 + results.len(), 6190);
         }
 
@@ -192,6 +172,27 @@ R 2"#;
                         );
                     });
             }
+        }
+    }
+
+    mod part2 {
+        use super::*;
+
+        #[test]
+        fn example_works() {
+            let input = "R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20";
+            let (_history, results) = test_helper(input, 10);
+
+            print_history(&_history);
+
+            assert_eq!(1 + results.len(), 36);
         }
     }
 
@@ -296,5 +297,45 @@ R 2"#;
     #[test_case("")]
     fn test_input_parser_failures(line: &str) {
         assert!(parse_input_line(line).is_err());
+    }
+
+    fn print_history(history: &[Vec<Vec2D>]) {
+        let (minx, maxx, miny, maxy) = history.iter().flatten().fold(
+            (
+                i32::max_value(),
+                i32::min_value(),
+                i32::max_value(),
+                i32::min_value(),
+            ),
+            |(minx, maxx, miny, maxy), (x, y)| {
+                (minx.min(*x), maxx.max(*x), miny.min(*y), maxy.max(*y))
+            },
+        );
+        println!("{minx}, {maxx}; {miny}, {maxy}");
+
+        history.iter().for_each(|frame| {
+            println!(
+                "{}\n",
+                (minx..maxx)
+                    .rev()
+                    .map(|i| {
+                        (miny..maxy)
+                            .map(|j| {
+                                match frame
+                                    .iter()
+                                    .enumerate()
+                                    .find(|&(_, &(x, y))| i == x && j == y)
+                                {
+                                    Some((0, _)) => 'H',
+                                    Some((idx, _)) => idx.to_string().chars().next().unwrap(),
+                                    None => '.',
+                                }
+                            })
+                            .collect::<String>()
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
+        });
     }
 }
