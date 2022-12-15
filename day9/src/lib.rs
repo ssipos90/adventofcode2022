@@ -30,10 +30,9 @@ pub fn parse_input(input: &str) -> Result<Vec<Vec2D>, String> {
 pub fn generate_history(data: &[Vec2D]) -> Vec<(Vec2D, Vec2D)> {
     data.iter()
         .flat_map(|(x, y)| {
-            let xa = x.abs() as usize;
-            let ya = y.abs() as usize;
+            let v = (x.cmp(&0) as i32, y.cmp(&0) as i32);
 
-            vec![(x, y)]
+            (0..x.abs() + y.abs()).map(move |_| v)
         })
         .fold(vec![], |mut history, (dx, dy)| {
             history.push(match history.last() {
@@ -278,18 +277,14 @@ R 2"#;
         }
     }
 
-    #[test_case(1, "R 4", (0, 4))]
-    #[test_case(2, "U 4", (-4, 0))]
-    #[test_case(3, "L 3", (0, -3))]
-    #[test_case(4, "D 1", (1, 0))]
-    #[test_case(5, "D 4", (4, 0))]
-    #[test_case(6, "L 5", (0, -5))]
-    #[test_case(7, "R 2", (0, 2))]
-    fn test_input_parser_success(
-        _: usize,
-        input: &str,
-        v: Vec2D,
-    ) {
+    #[test_case(1, "R 4", (4, 0))]
+    #[test_case(2, "U 4", (0, -4))]
+    #[test_case(3, "L 3", (-3, 0))]
+    #[test_case(4, "D 1", (0, 1))]
+    #[test_case(5, "D 4", (0, 4))]
+    #[test_case(6, "L 5", (-5, 0))]
+    #[test_case(7, "R 2", (2, 0))]
+    fn test_input_parser_success(_: usize, input: &str, v: Vec2D) {
         assert_eq!(parse_input_line(input).unwrap(), v);
     }
     #[test_case("f 4")]
@@ -299,7 +294,7 @@ R 2"#;
     #[test_case("R -5")]
     #[test_case("D abc")]
     #[test_case("")]
-    fn test_input_parser_failures(input: &str) {
-        assert!(parse_input_line(input).is_err());
+    fn test_input_parser_failures(line: &str) {
+        assert!(parse_input_line(line).is_err());
     }
 }
