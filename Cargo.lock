@@ -55,6 +55,13 @@ name = "ssipos90_adventofcode2022_day1"
 version = "0.1.0"
 
 [[package]]
+name = "ssipos90_adventofcode2022_day10"
+version = "0.1.0"
+dependencies = [
+ "test-case",
+]
+
+[[package]]
 name = "ssipos90_adventofcode2022_day2"
 version = "0.1.0"
 
