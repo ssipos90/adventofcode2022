@@ -7,10 +7,12 @@ use nom::{
     *,
 };
 
+#[derive(Debug, PartialEq)]
 pub enum MonkeyTest {
     Mod(u32),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum MonkeyOperation {
     Add(u32),
     Square,
@@ -87,7 +89,9 @@ pub fn monkey_parser(input: &str) -> IResult<&str, Monkey> {
     let (input, _) = multispace1(input)?;
     let (input, test) = test_parser(input)?;
 
+    let (input, _) = multispace1(input)?;
     let (input, test_yay) = branch_test_parser(input)?;
+    let (input, _) = multispace1(input)?;
     let (input, test_nay) = branch_test_parser(input)?;
 
     Ok((
@@ -155,15 +159,33 @@ mod tests {
         }
     }
 
+    #[test]
+    fn parse_single_monkey() {
+        let input = "Monkey 0:
+  Starting items: 79, 98
+  Operation: new = old * 19
+  Test: divisible by 23
+    If true: throw to monkey 2
+    If false: throw to monkey 3";
+
+        let (_, monkey) = monkey_parser(input).unwrap();
+        assert_eq!(monkey.id, 0);
+        assert_eq!(monkey.starting_items, vec![79, 98]);
+        assert_eq!(monkey.operation, MonkeyOperation::Mul(19));
+        assert_eq!(monkey.test, MonkeyTest::Mod(23));
+        assert_eq!(monkey.test_yay, 2);
+        assert_eq!(monkey.test_nay, 3);
+    }
+
     mod part1 {
-        use nom::multi::many0;
+        use nom::{character::complete::multispace0, multi::many0};
 
         use super::*;
 
         #[test]
         fn example_works() {
             let input = include_str!("../example");
-            let (_, v) = many0(monkey_parser)(input).unwrap();
+            let (_, v) = many0(delimited(multispace0, monkey_parser, multispace0))(input).unwrap();
             assert_eq!(v.len(), 4);
         }
     }
