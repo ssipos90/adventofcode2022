@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -7,20 +9,40 @@ use nom::{
     *,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MonkeyTest {
     Mod(u32),
 }
 
-#[derive(Debug, PartialEq)]
+impl MonkeyTest {
+    pub fn apply(&self, worry: u32) -> bool {
+        match self {
+            MonkeyTest::Mod(x) => worry % x == 0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum MonkeyOperation {
     Add(u32),
     Square,
     Mul(u32),
 }
 
+impl MonkeyOperation {
+    pub fn apply(&self, old: u32) -> u32 {
+        match self {
+            MonkeyOperation::Add(x) => old + x,
+            MonkeyOperation::Square => old * old,
+            MonkeyOperation::Mul(x) => old * x,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Monkey {
     pub id: u32,
+    pub inspections: usize,
     pub starting_items: Vec<u32>,
     pub operation: MonkeyOperation,
     pub test: MonkeyTest,
@@ -72,12 +94,6 @@ fn branch_test_parser(input: &str) -> IResult<&str, u32> {
     )(input)
 }
 
-// Monkey 0:
-//   Starting items: 79, 98
-//   Operation: new = old * 19
-//   Test: divisible by 23
-//     If true: throw to monkey 2
-//     If false: throw to monkey 3
 pub fn monkey_parser(input: &str) -> IResult<&str, Monkey> {
     // let mut monkeys = vec![];
     let (input, id) = header(input)?;
@@ -103,8 +119,37 @@ pub fn monkey_parser(input: &str) -> IResult<&str, Monkey> {
             test_nay,
             id,
             starting_items,
+            inspections: 0
         },
     ))
+}
+
+// fn play_round(monkeys: Vec<Monkey>) -> Vec<Monkey> {
+//     let mut transfers = vec![];
+// }
+
+pub fn monkey_keep_away(mut monkeys: Vec<Monkey>, rounds: usize) -> Vec<Monkey> {
+    let mut transfers: HashMap<u32, Vec<u32>> = HashMap::from_iter(monkeys.iter().map(|cm| (cm.id, vec![])));
+    for _ in 0..rounds {
+        for cm in monkeys.iter_mut() {
+            cm.starting_items.append(transfers.get_mut(&cm.id).unwrap());
+            cm.inspections += cm.starting_items.len();
+                cm
+                    .starting_items
+                    .drain(0..)
+                    .for_each(|old| {
+                        let new = cm.operation.apply(old) / 3;
+                        let dm = if cm.test.apply(new) {
+                            cm.test_yay
+                        } else {
+                            cm.test_nay
+                        };
+                        let bag = transfers.get_mut(&dm).unwrap();
+                        bag.push(new);
+                    });
+        }
+    }
+    monkeys
 }
 
 #[cfg(test)]
@@ -187,6 +232,27 @@ mod tests {
             let input = include_str!("../example");
             let (_, v) = many0(delimited(multispace0, monkey_parser, multispace0))(input).unwrap();
             assert_eq!(v.len(), 4);
+            let mut v = monkey_keep_away(v, 20);
+            v.sort_by(|m1, m2| {
+                m1.inspections.cmp(&m2.inspections)
+            });
+            v.reverse();
+            let p = v[0..=1].iter().map(|m| m.inspections).product::<usize>();
+            assert_eq!(p, 10605);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = include_str!("../input");
+            let (_, v) = many0(delimited(multispace0, monkey_parser, multispace0))(input).unwrap();
+            assert_eq!(v.len(), 8);
+            let mut v = monkey_keep_away(v, 20);
+            v.sort_by(|m1, m2| {
+                m1.inspections.cmp(&m2.inspections)
+            });
+            v.reverse();
+            let p = v[0..=1].iter().map(|m| m.inspections).product::<usize>();
+            assert_eq!(p, 110264);
         }
     }
 }
