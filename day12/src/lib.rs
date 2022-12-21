@@ -1,26 +1,35 @@
 use std::str::FromStr;
 
+type Coord = (usize, usize);
+
 #[derive(Debug)]
 pub struct HeightMap {
-    pub map: Vec<Vec<u32>>,
-    pub start: (u32, u32),
-    pub end: (u32, u32),
+    pub map: Vec<Vec<usize>>,
+    pub start: Coord,
+    pub end: Coord,
+}
+
+impl HeightMap {
+    pub fn shortest_distance() -> Result<Vec<Coord>, String> {
+
+        todo!();
+    }
 }
 
 #[derive(Debug)]
 pub enum Alt {
     Start,
     End,
-    Rando(u32),
+    Rando(usize),
 }
 
 impl FromStr for HeightMap {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut start: Option<(u32, u32)> = None;
-        let mut end: Option<(u32, u32)> = None;
-        let map: Vec<Vec<u32>> = s
+        let mut start: Option<Coord> = None;
+        let mut end: Option<Coord> = None;
+        let map: Vec<Vec<usize>> = s
             .lines()
             .enumerate()
             .map(|(x, line)| {
@@ -28,14 +37,14 @@ impl FromStr for HeightMap {
                     .enumerate()
                     .map(|(y, c)| match c {
                         'S' => {
-                            start = Some((x as u32, y as u32));
-                            Ok('a' as u32)
+                            start = Some((x, y));
+                            Ok('a' as usize)
                         }
                         'E' => {
-                            end = Some((x as u32, y as u32));
-                            Ok('z' as u32)
+                            end = Some((x, y));
+                            Ok('z' as usize)
                         }
-                        c @ 'a'..='z' => Ok(c as u32),
+                        c @ 'a'..='z' => Ok(c as usize),
                         _ => Err("Char out of range".to_string()),
                     })
                     .collect()
@@ -52,6 +61,11 @@ impl FromStr for HeightMap {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn calculate_shortest_path() {
+    }
+
     mod part1 {
         use super::*;
         #[test]
