@@ -13,20 +13,19 @@ pub struct HeightMap {
 }
 
 impl HeightMap {
-    fn calculate_neighbors(x: usize, y: usize, m: usize, n: usize) -> [Option<Coord>; 3] {
-        let mut neighbors: [Option<Coord>; 3] = [None; 3];
-        // don't need to look up since up already looked down and vertices are unidirectional
-        // if x > 0 {
-        //     neighbors[0] = Some((x - 1, y));
-        // }
-        if x + 1 < m {
-            neighbors[0] = Some((x + 1, y));
+    fn calculate_neighbors(x: usize, y: usize, m: usize, n: usize) -> [Option<Coord>; 4] {
+        let mut neighbors: [Option<Coord>; 4] = [None; 4];
+        if x > 0 {
+            neighbors[0] = Some((x - 1, y));
+        }
+        if x < m - 1 {
+            neighbors[1] = Some((x + 1, y));
         }
         if y > 0 {
-            neighbors[1] = Some((x, y - 1));
+            neighbors[2] = Some((x, y - 1));
         }
-        if y + 1 < n {
-            neighbors[2] = Some((x, y + 1));
+        if y < n - 1 {
+            neighbors[3] = Some((x, y + 1));
         }
         neighbors
     }
@@ -89,17 +88,17 @@ impl FromStr for HeightMap {
                 let height = *c;
                 Self::calculate_neighbors(x, y, m, n)
                     .iter()
-                    .filter_map(move |neighbor| {
-                        neighbor.and_then(|neighbor @ (x1, y1)| {
-                            let neighbor_height = v[x1][y1];
-                            if height - 1 <= neighbor_height && height + 1 >= neighbor_height {
-                                Some(((x, y), neighbor))
-                            } else {
-                                None
-                            }
-                        })
+                    .filter_map(|a| match {
                     })
-                    .collect::<Vec<(Coord, Coord)>>()
+                    .filter_map(move |b@(x1, y1)| {
+                        let neighbor_height = v[x1][y1];
+                        if height - 1 <= neighbor_height && height + 1 >= neighbor_height {
+                            Some(((x, y), b))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
             })
         });
 
