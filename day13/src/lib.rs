@@ -1,3 +1,5 @@
+use std::{cmp::Ordering, fmt::Display};
+
 use nom::{
     branch::alt, bytes::complete::tag, combinator::map, multi::separated_list0,
     sequence::delimited, IResult,
@@ -20,61 +22,85 @@ impl PacketsOrder {
     }
 }
 
-fn check_order(left: Sequence, right: Sequence) -> PacketsOrder {
-    match (left, right) {
-        (Sequence::List(l), Sequence::List(r)) => check_list_order(l, r),
-        (Sequence::List(l), r @ Sequence::Number(_)) => check_list_order(l, vec![r]),
-        (l @ Sequence::Number(_), Sequence::List(r)) => check_list_order(vec![l], r),
-        (Sequence::Number(l), Sequence::Number(r)) => PacketsOrder::from_numbers(l, r),
-    }
-}
-
-fn check_list_order(left: Vec<Sequence>, right: Vec<Sequence>) -> PacketsOrder {
-    let llen = left.len();
-    let rlen = right.len();
-    let result =
-        left.into_iter()
-            .zip(right)
-            .find_map(|(left, right)| match check_order(left, right) {
-                PacketsOrder::Dunno => None,
-                o => Some(o),
-            });
-
-    match result {
-        Some(o) => o,
-        None => PacketsOrder::from_numbers(llen as u32, rlen as u32),
-    }
-}
-
 pub fn parse_signal(input: &str) -> Result<Vec<(Sequence, Sequence)>, String> {
     input
         .split("\n\n")
         .map(|p| {
             p.split_once('\n')
                 .ok_or_else(|| "Failed to split pair.".to_string())
-                .and_then(|(a, b)| {
-                    let left = parse_packet(a)?;
-                    let right = parse_packet(b)?;
-                    Ok((left, right))
-                })
+                .and_then(|(a, b)| Ok((parse_packet(a)?, parse_packet(b)?)))
         })
         .collect()
 }
 
 pub fn check_signal(list: Vec<(Sequence, Sequence)>) -> Vec<bool> {
-    list.into_iter()
-        .map(|(left, right)| check_order(left, right) == PacketsOrder::Right)
+    list.iter()
+        .map(|(left, right)| Sequence::check_order(left, right) == PacketsOrder::Right)
         .collect()
 }
 
+#[derive(Eq, Debug)]
 pub enum Sequence {
     List(Vec<Sequence>),
     Number(u32),
 }
 
-impl ToString for Sequence {
-    fn to_string(&self) -> String {
-        match self {
+impl Sequence {
+    fn check_order(left: &Sequence, right: &Sequence) -> PacketsOrder {
+        match (left, right) {
+            (Sequence::List(l), Sequence::List(r)) => Self::check_list_order(l, r),
+            (Sequence::List(l), Sequence::Number(r)) => {
+                Self::check_list_order(l, &vec![Sequence::Number(*r)])
+            }
+            (Sequence::Number(l), Sequence::List(r)) => {
+                Self::check_list_order(&vec![Sequence::Number(*l)], r)
+            }
+            (Sequence::Number(l), Sequence::Number(r)) => PacketsOrder::from_numbers(*l, *r),
+        }
+    }
+    fn check_list_order(left: &Vec<Sequence>, right: &Vec<Sequence>) -> PacketsOrder {
+        let llen = left.len();
+        let rlen = right.len();
+        let result =
+            left.iter()
+                .zip(right)
+                .find_map(|(left, right)| match Self::check_order(left, right) {
+                    PacketsOrder::Dunno => None,
+                    o => Some(o),
+                });
+
+        match result {
+            Some(o) => o,
+            None => PacketsOrder::from_numbers(llen as u32, rlen as u32),
+        }
+    }
+}
+
+impl PartialEq for Sequence {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl PartialOrd for Sequence {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Sequence {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match Self::check_order(self, other) {
+            PacketsOrder::Wrong => Ordering::Greater,
+            PacketsOrder::Dunno => Ordering::Equal,
+            PacketsOrder::Right => Ordering::Less,
+        }
+    }
+}
+
+impl Display for Sequence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
             Sequence::List(list) => {
                 let mut s: String = String::new();
                 s.push('[');
@@ -89,7 +115,8 @@ impl ToString for Sequence {
                 s
             }
             Sequence::Number(number) => number.to_string(),
-        }
+        };
+        f.write_str(s.as_str())
     }
 }
 
@@ -154,7 +181,7 @@ mod tests {
         let left = parse_packet(left).unwrap();
         let right = parse_packet(right).unwrap();
 
-        assert_eq!(check_order(left, right), order);
+        assert_eq!(Sequence::check_order(&left, &right), order);
     }
 
     mod part1 {
@@ -186,6 +213,82 @@ mod tests {
 
             let result: usize = test_helper(check_signal(signal));
             assert_eq!(result, 4809);
+        }
+    }
+    mod part2 {
+        use super::*;
+
+        #[test]
+        fn reordering() {
+            let input = include_str!("../example");
+            let expected_output = include_str!("../example_ordered");
+
+            let signal_pairs = parse_signal(input).unwrap();
+            let mut signal: Vec<Sequence> = signal_pairs
+                .into_iter()
+                .flat_map(|(left, right)| [left, right])
+                .collect();
+            let (_, two) = parse_item("[[2]]").unwrap();
+            let (_, six) = parse_item("[[6]]").unwrap();
+            signal.push(two);
+            signal.push(six);
+            signal.sort();
+
+            let output = signal
+                .iter()
+                .map(|sequence| sequence.to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert_eq!(output, expected_output.trim());
+        }
+
+        fn test_helper(signal_pairs: &[(Sequence, Sequence)]) -> (usize, usize) {
+            let mut signal: Vec<&Sequence> = signal_pairs
+                .iter()
+                .flat_map(|(left, right)| [left, right])
+                .collect();
+            let (_, two) = parse_item("[[2]]").unwrap();
+            let (_, six) = parse_item("[[6]]").unwrap();
+            signal.push(&two);
+            signal.push(&six);
+            signal.sort();
+
+            let two_idx = signal
+                .iter()
+                .enumerate()
+                .find(|(_, sequence)| (**sequence).eq(&two))
+                .unwrap()
+                .0
+                + 1;
+
+            let six_idx = signal
+                .iter()
+                .enumerate()
+                .find(|(_, sequence)| sequence == &&&six)
+                .unwrap()
+                .0
+                + 1;
+            (two_idx, six_idx)
+        }
+
+        #[test]
+        fn example_works() {
+            let input = include_str!("../example");
+
+            let signal_pairs = parse_signal(input).unwrap();
+            let (a, b) = test_helper(&signal_pairs);
+
+            assert_eq!(a * b, 140);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = include_str!("../input");
+
+            let signal_pairs = parse_signal(input).unwrap();
+            let (a, b) = test_helper(&signal_pairs);
+
+            assert_eq!(a * b, 22600);
         }
     }
 }
