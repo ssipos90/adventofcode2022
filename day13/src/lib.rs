@@ -1,3 +1,8 @@
+use nom::{
+    branch::alt, bytes::complete::tag, combinator::map, multi::separated_list0,
+    sequence::delimited, IResult,
+};
+
 pub fn process_signal(input: &str) -> Result<Vec<bool>, String> {
     input
         .split("\n\n")
@@ -5,9 +10,9 @@ pub fn process_signal(input: &str) -> Result<Vec<bool>, String> {
             p.split_once('\n')
                 .ok_or_else(|| "Failed to split pair.".to_string())
                 .and_then(|(a, b)| {
-                    println!("left: {a}, right: {b}");
-                    process_packet_list(a)?;
-                    process_packet_list(b)?;
+                    let _left = process_packet(a)?;
+                    let _right = process_packet(b)?;
+
                     Ok(true)
                 })
         })
@@ -40,23 +45,20 @@ impl ToString for Sequence {
     }
 }
 
+fn process_list(input: &str) -> IResult<&str, Vec<Sequence>> {
+    delimited(tag("["), separated_list0(tag(","), process_item), tag("]"))(input)
+}
+
+fn process_item(input: &str) -> IResult<&str, Sequence> {
+    let number = map(nom::character::complete::u32, Sequence::Number);
+
+    alt((number, map(process_list, Sequence::List)))(input)
+}
+
 fn process_packet(input: &str) -> Result<Sequence, String> {
-    let c = input
-        .chars()
-        .next()
-        .ok_or_else(|| "Failed to get first char of str.".to_string())?;
-    Ok(match c {
-        '[' => Sequence::List(process_packet_list(&input[1..input.len() - 1])?),
-        _ => Sequence::Number(process_packet_number(input)?),
-    })
-}
+    let (_, a) = process_item(input).map_err(|e| e.to_string())?;
 
-fn process_packet_list(input: &str) -> Result<Vec<Sequence>, String> {
-    input.split(',').map(process_packet).collect()
-}
-
-fn process_packet_number(input: &str) -> Result<u32, String> {
-    input.parse::<u32>().map_err(|e| e.to_string())
+    Ok(a)
 }
 
 #[cfg(test)]
@@ -81,8 +83,8 @@ mod tests {
     #[test_case('o', "[1,[2,[3,[4,[5,6,7]]]],8,9]")]
     #[test_case('p', "[1,[2,[3,[4,[5,6,0]]]],8,9]")]
     fn packet_processor(_: char, input: &str) {
-        println!("{input}");
-        assert_eq!(process_packet(input).unwrap().to_string(), input);
+        let packet = process_packet(input).unwrap();
+        assert_eq!(packet.to_string().as_str(), input);
     }
 
     mod part1 {
