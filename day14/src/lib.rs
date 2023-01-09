@@ -1,4 +1,6 @@
-type Pair = (u32, u32);
+use std::io::{stdout, Write};
+
+type Pair = (usize, usize);
 
 pub fn parse_input(input: &str) -> Result<Vec<Vec<Pair>>, &'static str> {
     input
@@ -20,13 +22,58 @@ fn parse_line(line: &str) -> Result<Vec<Pair>, &'static str> {
 fn parse_pair(pair: &str) -> Result<Pair, &'static str> {
     let (left, right) = pair.split_once(',').ok_or("Failed to split on comma.")?;
     let left = left
-        .parse::<u32>()
+        .parse::<usize>()
         .map_err(|_| "Failed to parse left side.")?;
     let right = right
-        .parse::<u32>()
+        .parse::<usize>()
         .map_err(|_| "Failed to parse right side.")?;
 
     Ok((left, right))
+}
+
+type World = Vec<Vec<usize>>;
+
+pub fn build_world(source: Pair, obstacles: &[Vec<Pair>]) -> World {
+    let (min_width, max_width, depth): (usize, usize, usize) =
+        obstacles.iter().fold((usize::MAX, 0, 0), |acc, obstacle| {
+            obstacle
+                .iter()
+                .fold(acc, |(min_width, max_width, max_depth), (y, x)| {
+                    (min_width.min(*y), max_width.max(*y), max_depth.max(*x))
+                })
+        });
+    let source = (source.0 - min_width + 1, source.1);
+    let width = max_width - min_width + 1;
+
+    let mut world = vec![vec![0; width + 1]; depth + 1];
+
+    for obstacle in obstacles {
+        for &(y, x) in obstacle.iter() {
+            world[x][y - min_width] = 1;
+        }
+    }
+
+    world
+}
+
+fn print_world(world: &[Vec<usize>]) {
+    let mut s = stdout();
+    for line in world {
+        s.write_all(
+            line.iter()
+                .map(|&block| match block {
+                    0 => '.',
+                    1 => '#',
+                    2 => 'o',
+                    5 => '+',
+                    _ => panic!("unknown block."),
+                })
+                .collect::<String>()
+                .as_bytes(),
+        )
+        .unwrap();
+        s.write_all([b'\n'].as_slice()).unwrap();
+    }
 }
 
 #[cfg(test)]
@@ -105,11 +152,14 @@ mod tests {
         assert_eq!(result.as_slice(), expected);
     }
 
-    // mod part1 {
-    //     use super::*;
-    //     #[test]
-    //     fn example_works() {
-    //         assert_eq!(4, 4);
-    //     }
-    // }
+    mod part1 {
+        use super::*;
+        #[test]
+        fn example_works() {
+            let input = include_str!("../example");
+            let obstacles = parse_input(input).unwrap();
+            let world = build_world((500, 0), &obstacles);
+            print_world(world.as_slice());
+        }
+    }
 }
