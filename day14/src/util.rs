@@ -15,6 +15,7 @@ pub fn print_world(world: &[Vec<usize>]) {
     for line in world {
         s.write_all(
             line.iter()
+                .skip(400)
                 .map(|&block| match block {
                     0 => '.',
                     1 => '#',
