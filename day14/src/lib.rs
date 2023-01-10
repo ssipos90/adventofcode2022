@@ -46,10 +46,15 @@ pub fn build_world(source: Pair, obstacles: &[Vec<Pair>]) -> World {
     let width = max_width - min_width + 1;
 
     let mut world = vec![vec![0; width + 1]; depth + 1];
+    world[source.1][source.0] = 5;
 
     for obstacle in obstacles {
-        for &(y, x) in obstacle.iter() {
-            world[x][y - min_width] = 1;
+        for a in obstacle.windows(2) {
+            if let [(x1, y1), (x2, y2)] = a {
+                world[*x1][*y1 - min_width] = 1;
+            } else {
+                panic!("windows should work");
+            }
         }
     }
 
