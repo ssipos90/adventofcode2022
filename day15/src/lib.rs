@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 type Coord = (isize, isize);
 
 pub fn parse_input(input: &str) -> Result<Vec<(Coord, Coord)>, &'static str> {
@@ -29,6 +31,31 @@ fn parse_value(input: &str) -> Result<isize, &'static str> {
         .map_err(|_| "Failed to parse value as isize.")
 }
 
+pub fn work_and_sweat(input: &[(Coord, Coord)], line_number: isize) -> usize {
+    let distances: BTreeMap<&Coord, isize> = input
+        .iter()
+        .map(|(sensor, beacon)| {
+            (
+                sensor,
+                (beacon.0.abs_diff(sensor.0) + beacon.1.abs_diff(sensor.0)) as isize,
+            )
+        })
+        .collect();
+
+    let _smf = distances.iter().filter(|(sensor, distance)| {
+        ((sensor.1 - **distance)..(sensor.1 + **distance)).contains(&line_number)
+    })
+    .map(|(sensor, max_distance)| {
+        // let width = distance * 2 + 1;
+        let distance_to_line = sensor.1 - line_number;
+        let direction_to_line = distance_to_line.signum();
+        // let max_distance_on_line = (max_d);
+        todo!()
+    })
+    .collect::<Vec<_>>();
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,10 +82,22 @@ mod tests {
 
     #[test_case("", "Line should have 10 words.")]
     #[test_case("a, b, c", "Line should have 10 words.")]
-    #[test_case("Sensor at x=20.3, y=1: closest beacon is at x=15, y=3", "Failed to parse value as isize.")]
-    #[test_case("Sensor at x=20, y=abc: closest beacon is at x=15, y=3", "Failed to parse value as isize.")]
-    #[test_case("Sensor at x=20, y=1: closest beacon is at x=, y=3", "Failed to parse value as isize.")]
-    #[test_case("Sensor at x=20, y=2: closest beacon is at x=15, y=-abc", "Failed to parse value as isize.")]
+    #[test_case(
+        "Sensor at x=20.3, y=1: closest beacon is at x=15, y=3",
+        "Failed to parse value as isize."
+    )]
+    #[test_case(
+        "Sensor at x=20, y=abc: closest beacon is at x=15, y=3",
+        "Failed to parse value as isize."
+    )]
+    #[test_case(
+        "Sensor at x=20, y=1: closest beacon is at x=, y=3",
+        "Failed to parse value as isize."
+    )]
+    #[test_case(
+        "Sensor at x=20, y=2: closest beacon is at x=15, y=-abc",
+        "Failed to parse value as isize."
+    )]
     fn line_parser_failures(input: &str, expected_err: &str) {
         let out = parse_line(input);
 
@@ -66,12 +105,13 @@ mod tests {
     }
 
     mod part1 {
-        // use super::*;
+        use super::*;
 
-        // #[test]
-        // fn example_works() {
-        //     let input = include_str!("../example");
-        //     assert_eq!(result, 4);
-        // }
+        #[test]
+        fn example_works() {
+            let input = parse_input(include_str!("../example")).unwrap();
+
+            assert_eq!(work_and_sweat(&input, 2000000), 20);
+        }
     }
 }
