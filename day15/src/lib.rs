@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashSet;
 
 type Coord = (isize, isize);
 
@@ -32,28 +32,62 @@ fn parse_value(input: &str) -> Result<isize, &'static str> {
 }
 
 pub fn work_and_sweat(input: &[(Coord, Coord)], line_number: isize) -> usize {
-    let distances: BTreeMap<&Coord, isize> = input
+    let distances: HashSet<_> = input
         .iter()
-        .map(|(sensor, beacon)| {
-            (
-                sensor,
-                (beacon.0.abs_diff(sensor.0) + beacon.1.abs_diff(sensor.0)) as isize,
-            )
+        .filter_map(|(sensor, beacon)| {
+            let distance = manhattan_distance(sensor, beacon);
+            ((sensor.1 - distance)..(sensor.1 + distance))
+                .contains(&line_number)
+                .then_some((sensor, distance))
+        })
+        .flat_map(|(sensor, max_distance)| {
+            let distance_to_line = sensor.1.abs_diff(line_number) as isize;
+            let max_distance_on_line = max_distance - distance_to_line;
+
+            (sensor.0 - max_distance_on_line)..=(sensor.0 + max_distance_on_line)
         })
         .collect();
 
-    let _smf = distances.iter().filter(|(sensor, distance)| {
-        ((sensor.1 - **distance)..(sensor.1 + **distance)).contains(&line_number)
-    })
-    .map(|(sensor, max_distance)| {
-        // let width = distance * 2 + 1;
-        let distance_to_line = sensor.1 - line_number;
-        let direction_to_line = distance_to_line.signum();
-        // let max_distance_on_line = (max_d);
-        todo!()
-    })
-    .collect::<Vec<_>>();
-    todo!()
+    distances
+        .into_iter()
+        .filter(|cx| {
+            input
+                .iter()
+                .all(|(_, (x, y))| !(x == cx && y == &line_number))
+        })
+        .count()
+}
+
+pub fn find_beacon(input: &[(Coord, Coord)], max: isize) -> Result<(isize, isize), &'static str> {
+    let sensors: Vec<(&Coord, isize)> = input
+        .iter()
+        .map(|(sensor, beacon)| (sensor, manhattan_distance(sensor, beacon)))
+        .collect();
+
+    for y in 0..=max {
+        let mut x = 0;
+        while x <= max {
+            let current = (x, y);
+            if let Some(distance) = sensors
+                .iter()
+                .find_map(|(sensor, distance)| {
+                    let current_distance = manhattan_distance(sensor, &current);
+
+                    (current_distance <= *distance).then_some(distance - current_distance + 1)
+                })
+            {
+                x += distance;
+                continue;
+            }
+            return Ok((x, y))
+        }
+    }
+
+    Err("Failed to find the beacon.")
+}
+
+fn manhattan_distance(first: &Coord, second: &Coord) -> isize {
+    (second.0.abs_diff(first.0) + second.1.abs_diff(first.1)) as isize
 }
 
 #[cfg(test)]
@@ -75,9 +109,9 @@ mod tests {
     #[test_case("Sensor at x=16, y=7: closest beacon is at x=15, y=3", ((16, 7), (15, 3)))]
     #[test_case("Sensor at x=14, y=3: closest beacon is at x=15, y=3", ((14, 3), (15, 3)))]
     #[test_case("Sensor at x=20, y=1: closest beacon is at x=15, y=3", ((20, 1), (15, 3)))]
-    fn line_parser(input: &str, expected_output: (Coord, Coord)) {
+    fn line_parser(input: &str, expected_coord: ((isize, isize), (isize, isize))) {
         let output = parse_line(input).unwrap();
-        assert_eq!(output, expected_output);
+        assert_eq!(output, expected_coord);
     }
 
     #[test_case("", "Line should have 10 words.")]
@@ -111,7 +145,36 @@ mod tests {
         fn example_works() {
             let input = parse_input(include_str!("../example")).unwrap();
 
-            assert_eq!(work_and_sweat(&input, 2000000), 20);
+            assert_eq!(work_and_sweat(&input, 10), 26);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = parse_input(include_str!("../input")).unwrap();
+
+            assert_eq!(work_and_sweat(&input, 2000000), 5688618);
+        }
+    }
+
+    mod part2 {
+        use super::*;
+
+        #[test]
+        fn example_works() {
+            let input = parse_input(include_str!("../example")).unwrap();
+
+            let no: isize = 20;
+            let (x, y) = find_beacon(&input, no).unwrap();
+            assert_eq!(x * 4_000_000 + y, 56000011);
+        }
+
+        #[test]
+        fn input_works() {
+            let input = parse_input(include_str!("../input")).unwrap();
+
+            let no: isize = 4_000_000;
+            let (x, y) = find_beacon(&input, no).unwrap();
+            assert_eq!(x * no + y, 12625383204261);
         }
     }
 }
