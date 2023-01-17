@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use nom::{
+    branch::alt,
     bytes::complete::tag,
     character::complete::alpha1,
     multi::separated_list1,
@@ -21,7 +22,10 @@ impl<'a> WeirdVolcano<'a> {
             preceded(tag("Valve "), alpha1),
             preceded(tag(" has flow rate="), nom::character::complete::u32),
             preceded(
-                tag("; tunnels lead to valves "),
+                alt((
+                    tag("; tunnel leads to valve "),
+                    tag("; tunnels lead to valves "),
+                )),
                 separated_list1(tag(", "), alpha1),
             ),
         ))(line)
@@ -44,8 +48,9 @@ impl<'a> WeirdVolcano<'a> {
     }
 
     pub fn compress(&self) -> Result<HashMap<(&'a str, &'a str), u32>, String> {
-        floyd_warshall(&self.graph, |edge| {
-            let flow_rate = self.flow_rates.get(edge.1).unwrap();
+        floyd_warshall(&self.graph, |(_, to, _)| {
+            let flow_rate = self.flow_rates.get(to).unwrap();
+
             *flow_rate
         })
         .map_err(|_| "Negative cycle".to_string())
@@ -62,7 +67,10 @@ mod tests {
         fn example_works() {
             let input = include_str!("../example");
             let volcano = WeirdVolcano::build(input).unwrap();
-            assert_eq!(result, 4);
+            let s = volcano.compress().unwrap();
+
+            println!("{:?}", s);
+            assert_eq!(4, 4);
         }
     }
 }
