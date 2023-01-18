@@ -252,4 +252,39 @@ mod tests {
             assert_eq!(test_helper(&rocks, &currents, 2022), 3166);
         }
     }
+
+    mod part2 {
+        use super::*;
+        fn test_helper(rocks: &[Rock], currents: &[Current], iterations: usize) -> usize {
+            let world = simulate(rocks, currents, iterations);
+
+            world
+                .iter()
+                .enumerate()
+                .rev()
+                .find_map(|(x, line)| line.iter().any(|c| c == &1).then_some(x + 1))
+                .unwrap_or(0)
+        }
+
+        #[test]
+        fn example_works() {
+            let input = include_str!("../rocks");
+            let rocks = parse_rocks(input).unwrap();
+            let input = include_str!("../example");
+            let currents = parse_currents(input).unwrap();
+
+            assert_eq!(test_helper(&rocks, &currents, 1_000_000_000_000), 1_514_285_714_288);
+        }
+
+        #[test]
+        #[ignore]
+        fn input_works() {
+            let input = include_str!("../rocks");
+            let rocks = parse_rocks(input).unwrap();
+            let input = include_str!("../input");
+            let currents = parse_currents(input).unwrap();
+
+            assert_eq!(test_helper(&rocks, &currents, 2022), 3166);
+        }
+    }
 }
